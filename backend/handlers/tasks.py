@@ -1,3 +1,4 @@
+import asyncio
 from aiogram import Router, types
 from aiogram.filters import Command
 from backend.db import get_user_by_telegram_id, list_jira_configs
@@ -21,7 +22,9 @@ async def cmd_my_tasks(message: types.Message):
 
     for cfg in configs:
         try:
-            issues = fetch_jira_issues(
+            # Асинхронный вызов синхронной функции Jira через to_thread
+            issues = await asyncio.to_thread(
+                fetch_jira_issues,
                 server=cfg["jira_server"],
                 email=cfg["jira_email"],
                 token=cfg["jira_api_token"],
@@ -31,8 +34,9 @@ async def cmd_my_tasks(message: types.Message):
             )
             if issues:
                 header = f"📌 *{cfg['name']}* (проект {cfg['project_key'] or 'все проекты'})\n"
+                # Экранируем спецсимволы для Markdown
                 tasks_text = "\n".join(
-                    f"• [{i['key']}]({i['url']}) — {i['summary'][:80]} ({i['status']})"
+                    f"• [{i['key']}]({i['url']}) — {i['summary'][:80].replace('_', '\\_').replace('*', '\\*')} ({i['status']})"
                     for i in issues
                 )
                 await message.answer(header + tasks_text, parse_mode="Markdown", disable_web_page_preview=True)
