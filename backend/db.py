@@ -40,6 +40,12 @@ async def init_db():
         """)
     return _pool
 
+async def close_db_pool():
+    global _pool
+    if _pool:
+        await _pool.close()
+        _pool = None
+
 async def get_user_by_telegram_id(telegram_id: int):
     async with _pool.acquire() as conn:
         return await conn.fetchrow("SELECT * FROM users WHERE telegram_id = $1", telegram_id)
