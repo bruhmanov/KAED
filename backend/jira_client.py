@@ -10,11 +10,12 @@ def fetch_jira_issues(server: str, email: str, token: str, project_key: str = No
     if only_my:
         conditions.append('assignee = currentUser()')
 
-    jql = " AND ".join(conditions) if conditions else ""
-    if not jql:
-        jql = "ORDER BY created ASC"
-    else:
-        jql += " ORDER BY created ASC"
+    # Если нет ни одного условия – ошибка, так как без WHERE Jira вернёт всё подряд
+    if not conditions:
+        raise ValueError("Не заданы условия")
+
+    jql = " AND ".join(conditions)
+    jql += " ORDER BY created ASC"
 
     try:
         issues = jira.search_issues(jql, maxResults=max_results)
