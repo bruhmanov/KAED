@@ -10,3 +10,4 @@ PG_PASSWORD = os.getenv("PGPASSWORD")
 PG_SSLMODE = os.getenv("PGSSLMODE", "require")
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")

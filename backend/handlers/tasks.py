@@ -1,7 +1,7 @@
 import asyncio
 from aiogram import Router, types
 from aiogram.filters import Command
-from backend.db import get_user_by_telegram_id, list_jira_configs
+from backend.db import get_user_by_telegram_id, get_active_jira_configs_with_decrypted_tokens
 from backend.jira_client import fetch_jira_issues
 
 router = Router()
@@ -13,7 +13,7 @@ async def cmd_my_tasks(message: types.Message):
         await message.answer("Сначала выполните /start")
         return
 
-    configs = await list_jira_configs(user["id"], only_active=True)
+    configs = await get_active_jira_configs_with_decrypted_tokens(user["id"])
     if not configs:
         await message.answer("У вас нет активных Jira-конфигураций. Добавьте через /add_jira")
         return
