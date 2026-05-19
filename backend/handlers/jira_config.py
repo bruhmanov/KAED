@@ -3,7 +3,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from backend.db import get_user_by_telegram_id, add_jira_config, list_jira_configs
-
+from backend.handlers.validators.jira_config_validator import validate_jira_config
 router = Router()
 
 class JiraConfigForm(StatesGroup):
@@ -56,6 +56,24 @@ async def process_project(message: types.Message, state: FSMContext):
         await state.clear()
         return
 
+    # (NEW) проверка 
+    wait_msg = await message.answer("Проверяем конфигурацию...")
+
+    is_valid, error_msg = await validate_jira_config(
+        server=data["server"],
+        email=data["email"],
+        token=data["token"],
+        project=data["project_key"]
+    )
+    
+    if not is_valid:
+        await wait_msg.delete()
+        await message.answer(f"Ошибка: конфигурация не прошла валидацию:\n{error_msg}")
+        await state.clear()
+        return
+    
+
+
     await add_jira_config(
         user_id=user["id"],
         name=data["name"],
@@ -64,6 +82,8 @@ async def process_project(message: types.Message, state: FSMContext):
         jira_api_token=data["token"],
         project_key=data["project_key"]
     )
+
+    await wait_msg.delete()
     await message.answer(
         f"✅ Конфигурация «{data['name']}» сохранена!\n"
         f"Сервер: {data['server']}\n"
