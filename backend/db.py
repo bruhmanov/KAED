@@ -19,6 +19,7 @@ async def init_db():
         user=PG_USER,
         password=PG_PASSWORD,
         ssl=PG_SSLMODE,
+        timeout=5,
         command_timeout=60
     )
     async with _pool.acquire() as conn:
@@ -45,6 +46,23 @@ async def init_db():
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT NOW()
             );
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS tasks (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                completed BOOLEAN DEFAULT FALSE,
+                priority TEXT DEFAULT 'medium',
+                jira_id TEXT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+        await conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS tasks_user_jira_id_idx
+            ON tasks (user_id, jira_id)
+            WHERE jira_id IS NOT NULL;
         """)
     return _pool
 
@@ -108,3 +126,69 @@ async def get_jira_config(config_id: int, user_id: int):
     async with _pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM jira_configs WHERE id = $1 AND user_id = $2", config_id, user_id)
         return dict(row) if row else None
+
+def _task_to_dict(row):
+    task = dict(row)
+    task["id"] = str(task["id"])
+    task["created_at"] = task["created_at"].isoformat()
+    task["updated_at"] = task["updated_at"].isoformat()
+    return task
+
+async def list_tasks_for_telegram(telegram_id: int):
+    user = await get_user_by_telegram_id(telegram_id)
+    if not user:
+        return []
+
+    async with _pool.acquire() as conn:
+        rows = await conn.fetch("""
+            SELECT id, title, completed, priority, jira_id, created_at, updated_at
+            FROM tasks
+            WHERE user_id = $1
+            ORDER BY created_at DESC
+        """, user["id"])
+        return [_task_to_dict(row) for row in rows]
+
+async def create_task_for_telegram(telegram_id: int, title: str, priority: str = "medium", jira_id: str = None):
+    user = await get_user_by_telegram_id(telegram_id)
+    if not user:
+        user = await create_user(telegram_id=telegram_id)
+
+    async with _pool.acquire() as conn:
+        row = await conn.fetchrow("""
+            INSERT INTO tasks (user_id, title, priority, jira_id)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user_id, jira_id) WHERE jira_id IS NOT NULL
+            DO UPDATE SET
+                title = EXCLUDED.title,
+                priority = EXCLUDED.priority,
+                updated_at = NOW()
+            RETURNING id, title, completed, priority, jira_id, created_at, updated_at
+        """, user["id"], title, priority, jira_id)
+        return _task_to_dict(row)
+
+async def toggle_task_for_telegram(telegram_id: int, task_id: int):
+    user = await get_user_by_telegram_id(telegram_id)
+    if not user:
+        return None
+
+    async with _pool.acquire() as conn:
+        row = await conn.fetchrow("""
+            UPDATE tasks
+            SET completed = NOT completed,
+                updated_at = NOW()
+            WHERE id = $1 AND user_id = $2
+            RETURNING id, title, completed, priority, jira_id, created_at, updated_at
+        """, task_id, user["id"])
+        return _task_to_dict(row) if row else None
+
+async def delete_task_for_telegram(telegram_id: int, task_id: int):
+    user = await get_user_by_telegram_id(telegram_id)
+    if not user:
+        return False
+
+    async with _pool.acquire() as conn:
+        result = await conn.execute("""
+            DELETE FROM tasks
+            WHERE id = $1 AND user_id = $2
+        """, task_id, user["id"])
+        return result.endswith("1")
