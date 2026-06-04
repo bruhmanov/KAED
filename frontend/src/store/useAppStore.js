@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import {
   createTask,
   deleteTask,
+  getFallbackUser,
   getTasks,
   initTelegramShell,
   loginTelegram,
@@ -15,7 +16,6 @@ const fallbackTasks = [
     id: 'demo-1',
     title: 'Проверить загрузку голосового файла',
     completed: false,
-    priority: 'medium',
     jira_id: 'KAED-14',
     created_at: new Date().toISOString(),
   },
@@ -23,7 +23,6 @@ const fallbackTasks = [
     id: 'demo-2',
     title: 'Синхронизация с Jira',
     completed: false,
-    priority: 'high',
     jira_id: 'KAED-21',
     created_at: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
   },
@@ -31,22 +30,74 @@ const fallbackTasks = [
     id: 'demo-3',
     title: 'Подготовить daily report',
     completed: true,
-    priority: 'low',
     jira_id: null,
     created_at: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
   },
 ]
 
+const FAVORITES_KEY = 'kaed.favoriteTaskIds'
+const DEMO_TASK_STATE_KEY = 'kaed.demoTaskState'
+
+function readFavoriteTaskIds() {
+  try {
+    return JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function writeFavoriteTaskIds(ids) {
+  try {
+    window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(ids))
+  } catch {
+    // localStorage can be unavailable inside restricted webviews.
+  }
+}
+
+function readDemoTaskState() {
+  try {
+    return JSON.parse(window.localStorage.getItem(DEMO_TASK_STATE_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function writeDemoTaskState(state) {
+  try {
+    window.localStorage.setItem(DEMO_TASK_STATE_KEY, JSON.stringify(state))
+  } catch {
+    // localStorage can be unavailable inside restricted webviews.
+  }
+}
+
+function applyDemoTaskState(tasks, demoTaskState) {
+  return tasks.map((task) => {
+    const demoState = demoTaskState[String(task.id)] || {}
+    return {
+      ...task,
+      ...(demoState.jira_id ? { jira_id: demoState.jira_id } : {}),
+    }
+  })
+}
+
+function createDemoJiraKey(taskId) {
+  const suffix = String(taskId).replace(/\D/g, '').slice(-3) || String(Date.now()).slice(-3)
+  return `KAN-DEMO-${suffix}`
+}
+
 export const useAppStore = create((set, get) => ({
   activeTab: 'home',
   user: null,
   tasks: [],
+  favoriteTaskIds: readFavoriteTaskIds(),
   loading: false,
   apiError: '',
   syncState: 'idle',
   voiceState: 'idle',
   voiceResult: null,
   lastSyncAt: null,
+  sendingToJiraIds: [],
+  demoTaskState: readDemoTaskState(),
 
   setActiveTab: (tab) => {
     set({ activeTab: tab })
@@ -63,11 +114,11 @@ export const useAppStore = create((set, get) => ({
       const user = await loginTelegram()
       set({ user })
       const tasks = await getTasks(user.id)
-      set({ tasks, loading: false })
+      set({ tasks: applyDemoTaskState(tasks, get().demoTaskState), loading: false })
     } catch (error) {
       set({
-        user: { id: 10001, first_name: 'Эвелина', username: 'demo' },
-        tasks: fallbackTasks,
+        user: getFallbackUser(),
+        tasks: applyDemoTaskState(fallbackTasks, get().demoTaskState),
         loading: false,
         apiError: error.message || 'Backend временно недоступен. Показан demo-режим.',
       })
@@ -80,13 +131,13 @@ export const useAppStore = create((set, get) => ({
 
     try {
       const tasks = await getTasks(user.id)
-      set({ tasks, apiError: '' })
+      set({ tasks: applyDemoTaskState(tasks, get().demoTaskState), apiError: '' })
     } catch (error) {
       set({ apiError: error.message })
     }
   },
 
-  addTask: async ({ title, priority }) => {
+  addTask: async ({ title }) => {
     const user = get().user
     if (!user || !title.trim()) return
 
@@ -94,7 +145,6 @@ export const useAppStore = create((set, get) => ({
       id: `local-${Date.now()}`,
       title: title.trim(),
       completed: false,
-      priority,
       jira_id: null,
       created_at: new Date().toISOString(),
     }
@@ -102,9 +152,13 @@ export const useAppStore = create((set, get) => ({
     set((state) => ({ tasks: [optimisticTask, ...state.tasks] }))
 
     try {
-      const savedTask = await createTask({ telegramId: user.id, title, priority })
+      const savedTask = await createTask({ telegramId: user.id, title })
       set((state) => ({
-        tasks: state.tasks.map((task) => (task.id === optimisticTask.id ? savedTask : task)),
+        tasks: state.tasks.map((task) => (
+          task.id === optimisticTask.id
+            ? applyDemoTaskState([savedTask], state.demoTaskState)[0]
+            : task
+        )),
         apiError: '',
       }))
     } catch (error) {
@@ -149,6 +203,46 @@ export const useAppStore = create((set, get) => ({
     } catch (error) {
       set({ tasks: previousTasks, apiError: error.message })
     }
+  },
+
+  sendTaskToJira: async (taskId) => {
+    const normalizedId = String(taskId)
+    if (get().sendingToJiraIds.includes(normalizedId)) return
+
+    set((state) => ({
+      sendingToJiraIds: [...state.sendingToJiraIds, normalizedId],
+      apiError: '',
+    }))
+
+    await new Promise((resolve) => setTimeout(resolve, 650))
+
+    const jira_id = createDemoJiraKey(taskId)
+    const nextDemoTaskState = {
+      ...get().demoTaskState,
+      [normalizedId]: {
+        ...(get().demoTaskState[normalizedId] || {}),
+        jira_id,
+      },
+    }
+    writeDemoTaskState(nextDemoTaskState)
+
+    set((state) => ({
+      demoTaskState: nextDemoTaskState,
+      tasks: state.tasks.map((task) => (task.id === taskId ? { ...task, jira_id } : task)),
+      sendingToJiraIds: state.sendingToJiraIds.filter((id) => id !== normalizedId),
+      apiError: '',
+    }))
+  },
+
+  toggleFavorite: (taskId) => {
+    const normalizedId = String(taskId)
+    const current = get().favoriteTaskIds
+    const next = current.includes(normalizedId)
+      ? current.filter((id) => id !== normalizedId)
+      : [...current, normalizedId]
+
+    writeFavoriteTaskIds(next)
+    set({ favoriteTaskIds: next })
   },
 
   syncWithJira: async () => {

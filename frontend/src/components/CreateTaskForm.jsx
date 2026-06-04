@@ -32,29 +32,12 @@ const Input = styled.input`
   padding: 0 15px;
   background: #050505;
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--body-size);
   font-weight: 400;
 
   &::placeholder {
     color: #747875;
   }
-
-  &:focus {
-    border-color: var(--yellow);
-  }
-`
-
-const Select = styled.select`
-  grid-column: 1 / -1;
-  min-height: 46px;
-  border: 1px solid var(--line);
-  outline: 0;
-  border-radius: 999px;
-  padding: 0 14px;
-  background: #050505;
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 400;
 
   &:focus {
     border-color: var(--yellow);
@@ -81,14 +64,12 @@ const Button = styled.button`
 
 export default function CreateTaskForm({ onSubmit }) {
   const [title, setTitle] = useState('')
-  const [priority, setPriority] = useState('medium')
 
   function handleSubmit(event) {
     event.preventDefault()
     if (!title.trim()) return
-    onSubmit({ title: title.trim(), priority })
+    onSubmit({ title: title.trim() })
     setTitle('')
-    setPriority('medium')
   }
 
   return (
@@ -104,16 +85,6 @@ export default function CreateTaskForm({ onSubmit }) {
       <Button type="submit" aria-label="Добавить задачу">
         <Plus aria-hidden="true" />
       </Button>
-      <Label htmlFor="task-priority">Приоритет</Label>
-      <Select
-        id="task-priority"
-        value={priority}
-        onChange={(event) => setPriority(event.target.value)}
-      >
-        <option value="low">Низкий приоритет</option>
-        <option value="medium">Средний приоритет</option>
-        <option value="high">Высокий приоритет</option>
-      </Select>
     </Form>
   )
 }

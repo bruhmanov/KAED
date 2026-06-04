@@ -21,7 +21,7 @@ const Pill = styled.span`
   background: ${({ tone = 'dark' }) => colorMap[tone]?.[0] || colorMap.dark[0]};
   color: ${({ tone = 'dark' }) => colorMap[tone]?.[1] || colorMap.dark[1]};
   border: ${({ tone = 'dark' }) => (tone === 'dark' ? '1px solid var(--line)' : '0')};
-  font-size: 13px;
+  font-size: var(--meta-size);
   font-weight: 500;
   letter-spacing: 0;
   white-space: nowrap;

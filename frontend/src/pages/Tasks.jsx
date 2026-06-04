@@ -6,11 +6,11 @@ import TaskCard from '../components/TaskCard.jsx'
 import { useAppStore } from '../store/useAppStore.js'
 
 const Top = styled.header`
-  margin: 0 0 17px 12px;
+  margin: 0 0 17px var(--title-indent);
 
   h1 {
     margin: 0;
-    font-size: 28px;
+    font-size: var(--page-title-size);
     line-height: 1.05;
     letter-spacing: 0;
     font-weight: 600;
@@ -35,7 +35,7 @@ const SearchBox = styled.label`
     outline: 0;
     background: transparent;
     color: var(--text);
-    font-size: 14px;
+    font-size: var(--body-size);
   }
 
   input::placeholder {
@@ -63,7 +63,7 @@ const Chip = styled.button`
   padding: 0 15px;
   color: ${({ active }) => (active ? '#050505' : '#f2f2ef')};
   background: ${({ active }) => (active ? '#f4f4ef' : '#141414')};
-  font-size: 13px;
+  font-size: var(--meta-size);
   font-weight: 500;
   letter-spacing: 0;
 `
@@ -88,7 +88,7 @@ const Empty = styled.div`
 
 const FloatingButton = styled.button`
   position: fixed;
-  right: max(18px, calc((100vw - 390px) / 2 + 18px));
+  right: max(var(--content-x), calc((100vw - 390px) / 2 + var(--content-x)));
   bottom: calc(88px + var(--tg-safe-bottom));
   z-index: 9;
   width: 62px;
@@ -113,7 +113,7 @@ const ErrorBox = styled.div`
   border-radius: 18px;
   color: #050505;
   background: #ff6259;
-  font-size: 13px;
+  font-size: var(--meta-size);
   font-weight: 500;
 `
 
@@ -125,7 +125,17 @@ const filters = [
 ]
 
 export default function Tasks() {
-  const { tasks, addTask, toggleTask, removeTask, apiError } = useAppStore()
+  const {
+    tasks,
+    favoriteTaskIds,
+    sendingToJiraIds,
+    addTask,
+    toggleTask,
+    toggleFavorite,
+    removeTask,
+    sendTaskToJira,
+    apiError,
+  } = useAppStore()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -135,11 +145,11 @@ export default function Tasks() {
       const matchesQuery = task.title.toLowerCase().includes(query.toLowerCase())
       if (!matchesQuery) return false
       if (filter === 'active') return !task.completed
-      if (filter === 'review') return task.priority === 'high' && !task.completed
+      if (filter === 'review') return favoriteTaskIds.includes(String(task.id))
       if (filter === 'done') return task.completed
       return true
     })
-  }, [tasks, query, filter])
+  }, [tasks, query, filter, favoriteTaskIds])
 
   function handleSubmit(data) {
     addTask(data)
@@ -174,7 +184,16 @@ export default function Tasks() {
 
       <List aria-label="Список задач">
         {filteredTasks.map((task) => (
-          <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={removeTask} />
+          <TaskCard
+            key={task.id}
+            task={task}
+            favorite={favoriteTaskIds.includes(String(task.id))}
+            onToggle={toggleTask}
+            onToggleFavorite={toggleFavorite}
+            onDelete={removeTask}
+            onSendToJira={sendTaskToJira}
+            sendingToJira={sendingToJiraIds.includes(String(task.id))}
+          />
         ))}
         {!filteredTasks.length && (
           <Empty>

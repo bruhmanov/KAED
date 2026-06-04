@@ -5,11 +5,11 @@ import StatusPill from '../components/StatusPill.jsx'
 import { useAppStore } from '../store/useAppStore.js'
 
 const Top = styled.header`
-  margin: 0 0 16px 12px;
+  margin: 0 0 16px var(--title-indent);
 
   h1 {
     margin: 0;
-    font-size: 28px;
+    font-size: var(--page-title-size);
     line-height: 1.05;
     letter-spacing: 0;
     font-weight: 600;
@@ -41,7 +41,7 @@ const ConnectionTop = styled.div`
   p {
     margin: 0;
     color: rgba(235,242,255,.52);
-    font-size: 13px;
+    font-size: var(--meta-size);
     line-height: 1.35;
   }
 `
@@ -94,7 +94,7 @@ const Section = styled.section`
     justify-content: space-between;
     gap: 10px;
     margin: 0 0 10px;
-    font-size: 16px;
+    font-size: var(--section-title-size);
     font-weight: 500;
     letter-spacing: 0;
   }
@@ -104,9 +104,16 @@ const ItemList = styled(GlassCard)`
   padding: 10px 12px;
 `
 
+const EmptyState = styled.div`
+  padding: 18px 6px;
+  color: var(--muted);
+  font-size: var(--meta-size);
+  line-height: 1.35;
+`
+
 const JiraItem = styled.div`
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 10px;
   min-height: 68px;
@@ -119,7 +126,7 @@ const JiraItem = styled.div`
   strong {
     display: block;
     color: var(--text);
-    font-size: 14px;
+    font-size: var(--body-size);
     font-weight: 400;
     margin-bottom: 5px;
     line-height: 1.2;
@@ -127,7 +134,7 @@ const JiraItem = styled.div`
 
   small {
     color: var(--muted);
-    font-size: 12px;
+    font-size: var(--meta-size);
   }
 `
 
@@ -149,63 +156,6 @@ const CheckBox = styled.button`
   }
 `
 
-const Arrow = styled.span`
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  color: #f4f4ef;
-  font-size: 21px;
-  line-height: 1;
-`
-
-const Activity = styled(GlassCard)`
-  padding: 10px 12px;
-`
-
-const ActivityRow = styled.div`
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
-
-  &:last-of-type {
-    border-bottom: 0;
-  }
-
-  p {
-    margin: 0 0 3px;
-    color: rgba(246,248,250,.88);
-    font-size: 13px;
-    line-height: 1.25;
-  }
-
-  small {
-    color: var(--muted);
-    font-size: 12px;
-  }
-`
-
-const DotIcon = styled.span`
-  width: 18px;
-  height: 18px;
-  margin-top: 1px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: ${({ tone }) => tone};
-  color: #050505;
-
-  &::after {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-  }
-`
-
 const ErrorBox = styled.div`
   margin-top: 12px;
   padding: 12px;
@@ -213,7 +163,7 @@ const ErrorBox = styled.div`
   color: #050505;
   background: #ff6259;
   border: 0;
-  font-size: 13px;
+  font-size: var(--meta-size);
   font-weight: 400;
 `
 
@@ -227,15 +177,17 @@ export default function Jira() {
     toggleTask,
   } = useAppStore()
 
-  const readyTasks = tasks.slice(0, 3)
   const isLoading = syncState === 'loading'
+  const jiraTasks = tasks.filter((task) => task.jira_id)
+  const readyTasks = jiraTasks.slice(0, 5)
+  const isSynced = Boolean(lastSyncAt || jiraTasks.length)
 
   const syncLabel = lastSyncAt
     ? new Date(lastSyncAt).toLocaleTimeString('ru-RU', {
         hour: '2-digit',
         minute: '2-digit',
       })
-    : '2 минуты назад'
+    : 'Не синхронизировано'
 
   return (
     <>
@@ -251,7 +203,7 @@ export default function Jira() {
 
           <div>
             <h2 id="jira-connection-title">
-              Jira подключена
+              {isSynced ? 'Jira синхронизирована' : 'Jira не синхронизирована'}
             </h2>
 
             <p>
@@ -270,14 +222,14 @@ export default function Jira() {
 
       <Section aria-labelledby="ready-title">
         <h2 id="ready-title">
-          Готово к отправке
+          Синхронизированные задачи
           <StatusPill tone="muted" dot={false}>
-            {readyTasks.length}
+            {jiraTasks.length}
           </StatusPill>
         </h2>
 
         <ItemList>
-          {readyTasks.map((task) => (
+          {readyTasks.length ? readyTasks.map((task) => (
             <JiraItem key={task.id}>
               <CheckBox
                 type="button"
@@ -290,43 +242,16 @@ export default function Jira() {
 
               <div>
                 <strong>{task.title}</strong>
-                <small>{task.jira_id || 'LOCAL'}</small>
+                {task.jira_id && <small>{task.jira_id}</small>}
               </div>
 
-              <Arrow aria-hidden="true">→</Arrow>
             </JiraItem>
-          ))}
+          )) : (
+            <EmptyState>
+              Пока нет задач, отправленных или синхронизированных с Jira.
+            </EmptyState>
+          )}
         </ItemList>
-      </Section>
-
-      <Section aria-labelledby="activity-title">
-        <h2 id="activity-title">Активность</h2>
-
-        <Activity>
-          <ActivityRow>
-            <DotIcon tone="var(--green)" />
-            <div>
-              <p>KAED-14 обновлена</p>
-              <small>2 минуты назад</small>
-            </div>
-          </ActivityRow>
-
-          <ActivityRow>
-            <DotIcon tone="var(--blue)" />
-            <div>
-              <p>KAED-21 создана</p>
-              <small>15 минут назад</small>
-            </div>
-          </ActivityRow>
-
-          <ActivityRow>
-            <DotIcon tone="var(--blue)" />
-            <div>
-              <p>Отчёт отправлен</p>
-              <small>20 минут назад</small>
-            </div>
-          </ActivityRow>
-        </Activity>
       </Section>
 
       {apiError && <ErrorBox role="alert">{apiError}</ErrorBox>}

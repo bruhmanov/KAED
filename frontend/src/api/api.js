@@ -1,10 +1,31 @@
 const API_BASE_URL = window.__KAED_API_URL__ || process.env.KAED_API_URL || ''
 
-const DEMO_USER = {
-  id: 10001,
-  first_name: 'Эвелина',
-  username: 'kaed_demo',
-  last_name: '',
+const FALLBACK_USER_KEY = 'kaed.fallbackUser'
+
+export function getFallbackUser() {
+  try {
+    const saved = window.localStorage.getItem(FALLBACK_USER_KEY)
+    if (saved) {
+      return JSON.parse(saved)
+    }
+  } catch {
+    // localStorage can be unavailable inside restricted webviews.
+  }
+
+  const user = {
+    id: Math.floor(900000000 + Math.random() * 90000000),
+    first_name: 'Пользователь',
+    username: 'web_guest',
+    last_name: '',
+  }
+
+  try {
+    window.localStorage.setItem(FALLBACK_USER_KEY, JSON.stringify(user))
+  } catch {
+    // localStorage can be unavailable inside restricted webviews.
+  }
+
+  return user
 }
 
 function getTelegramWebApp() {
@@ -31,11 +52,11 @@ export function getTelegramPayload() {
     user: tgUser
       ? {
           id: tgUser.id,
-          first_name: tgUser.first_name,
-          username: tgUser.username,
-          last_name: tgUser.last_name,
+          first_name: tgUser.first_name || 'Пользователь',
+          username: tgUser.username || '',
+          last_name: tgUser.last_name || '',
         }
-      : DEMO_USER,
+      : getFallbackUser(),
   }
 }
 
@@ -78,10 +99,10 @@ export async function getTasks(telegramId) {
   return request(`/tasks?telegram_id=${encodeURIComponent(telegramId)}`)
 }
 
-export async function createTask({ telegramId, title, priority }) {
+export async function createTask({ telegramId, title }) {
   return request('/tasks', {
     method: 'POST',
-    body: JSON.stringify({ telegram_id: telegramId, title, priority }),
+    body: JSON.stringify({ telegram_id: telegramId, title }),
   })
 }
 

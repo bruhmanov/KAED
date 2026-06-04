@@ -9,7 +9,7 @@ const Header = styled.header`
   justify-content: space-between;
   align-items: center;
   gap: 14px;
-  margin-bottom: 25px;
+  margin: 0 var(--title-indent) 25px;
 `
 
 const Brand = styled.div`
@@ -53,13 +53,13 @@ const Avatar = styled.div`
 `
 
 const Hero = styled.section`
-  margin-bottom: 14px;
+  margin: 0 var(--title-indent) 14px;
 `
 
 const Title = styled.h1`
   margin: 0 0 7px;
   color: var(--text);
-  font-size: 28px;
+  font-size: var(--page-title-size);
   line-height: 1.05;
   letter-spacing: 0;
   font-weight: 600;
@@ -105,7 +105,7 @@ const VoiceText = styled.div`
 
   span {
     color: rgba(5,5,5,.64);
-    font-size: 12px;
+    font-size: var(--meta-size);
     font-weight: 650;
   }
 `
@@ -196,7 +196,7 @@ const Stat = styled.article`
     gap: 6px;
     color: inherit;
     opacity: .78;
-    font-size: 12px;
+    font-size: var(--meta-size);
     font-weight: 500;
   }
 
@@ -224,7 +224,7 @@ const SectionTitle = styled.div`
 
   h2 {
     margin: 0;
-    font-size: 17px;
+    font-size: var(--section-title-size);
     font-weight: 500;
     letter-spacing: 0;
   }
@@ -236,7 +236,7 @@ const SectionTitle = styled.div`
     border-radius: 999px;
     background: #f4f4ef;
     color: #050505;
-    font-size: 12px;
+    font-size: var(--meta-size);
     font-weight: 500;
   }
 `
@@ -260,7 +260,7 @@ const TaskRow = styled.div`
   p {
     margin: 0;
     color: var(--text);
-    font-size: 14px;
+    font-size: var(--body-size);
     line-height: 1.22;
     font-weight: 400;
   }
@@ -293,30 +293,38 @@ const Dot = styled.span`
 
 function taskTone(task) {
   if (task.completed) return 'var(--green)'
-  if (task.priority === 'high') return 'var(--pink)'
-  if (task.priority === 'medium') return 'var(--yellow)'
   return 'var(--blue)'
 }
 
 function taskStatus(task) {
   if (task.completed) return { label: 'Готово', bg: 'var(--green)', fg: '#050505' }
-  if (task.priority === 'high') return { label: 'Проверка', bg: 'var(--yellow)', fg: '#050505' }
   return { label: 'В работе', bg: 'var(--blue)', fg: '#ffffff' }
 }
 
 function taskTime(task) {
   try {
-    return new Date(task.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    if (!task.created_at) {
+      return ''
+    }
+    const normalized = /(?:z|[+-]\d{2}:?\d{2})$/i.test(task.created_at)
+      ? task.created_at
+      : `${task.created_at}Z`
+    const date = new Date(normalized)
+    if (Number.isNaN(date.getTime())) {
+      return ''
+    }
+    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
   } catch {
-    return '11:30'
+    return ''
   }
 }
 
 export default function Home() {
-  const { user, tasks, setActiveTab } = useAppStore()
+  const { user, tasks, favoriteTaskIds, setActiveTab } = useAppStore()
   const active = tasks.filter((task) => !task.completed).length
   const completed = tasks.filter((task) => task.completed).length
-  const blockers = tasks.filter((task) => task.priority === 'high' && !task.completed).length
+  const favorites = tasks.filter((task) => favoriteTaskIds.includes(String(task.id))).length
+  const jiraSynced = tasks.some((task) => task.jira_id)
   const recent = tasks.slice(0, 3)
 
   return (
@@ -325,11 +333,11 @@ export default function Home() {
         <Brand aria-label="KAED">
           <img src={kaedLogo} alt="" />
         </Brand>
-        <Avatar aria-label="Профиль пользователя">{(user?.first_name || 'Э')[0]}</Avatar>
+        <Avatar aria-label="Профиль пользователя">{(user?.first_name || 'П')[0]}</Avatar>
       </Header>
 
       <Hero>
-        <Title>Привет, {user?.first_name || 'Эвелина'}</Title>
+        <Title>Привет, {user?.first_name || 'Пользователь'}</Title>
       </Hero>
 
       <CampaignCard as="section" aria-labelledby="record-title">
@@ -348,8 +356,8 @@ export default function Home() {
       <StatsGrid aria-label="Статистика задач">
         <Stat bg="var(--pink)" dark><span><Sprout size={14} />Активные</span><strong>{active}</strong></Stat>
         <Stat bg="var(--blue)"><span><Check size={15} />Готово</span><strong>{completed}</strong></Stat>
-        <Stat bg="var(--green)" dark><span><CircleAlert size={15} />Избранное</span><strong>{blockers}</strong></Stat>
-        <Stat bg="var(--panel-2)"><span>Jira синхронизация</span><strong>ON</strong></Stat>
+        <Stat bg="var(--green)" dark><span><CircleAlert size={15} />Избранное</span><strong>{favorites}</strong></Stat>
+        <Stat bg="var(--panel-2)"><span>Jira синхронизация</span><strong>{jiraSynced ? 'ON' : 'OFF'}</strong></Stat>
       </StatsGrid>
 
       <SectionTitle>

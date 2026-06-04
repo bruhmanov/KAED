@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import styled from '@emotion/styled'
-import { AnimatePresence, motion } from 'framer-motion'
 import Home from './pages/Home.jsx'
 import Tasks from './pages/Tasks.jsx'
 import Voice from './pages/Voice.jsx'
@@ -19,18 +18,16 @@ const Root = styled.div`
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  background: #2f3732;
+  background: var(--bg);
 `
 
 const Phone = styled.div`
   position: relative;
-  width: min(100vw, 390px);
+  width: var(--app-width);
   min-height: 100vh;
   overflow: hidden;
   color: var(--text);
   background: var(--bg);
-  border-left: 1px solid rgba(255,255,255,.07);
-  border-right: 1px solid rgba(255,255,255,.07);
 
   &::before {
     content: '';
@@ -98,11 +95,13 @@ const Star = styled.div`
   }
 `
 
-const Content = styled(motion.main)`
+const Content = styled.main`
   position: relative;
   z-index: 1;
+  width: 100%;
   min-height: 100vh;
-  padding: 10px 15px calc(86px + var(--tg-safe-bottom));
+  padding: 10px var(--content-x) calc(86px + var(--tg-safe-bottom));
+  overflow-x: hidden;
 `
 
 export default function App() {
@@ -123,6 +122,10 @@ export default function App() {
     return () => window.removeEventListener('hashchange', syncRoute)
   }, [bootstrap, setActiveTab])
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [activeTab])
+
   return (
     <Root>
       <Phone>
@@ -142,17 +145,9 @@ export default function App() {
         <Star x="80%" y="198px" size={9} color="var(--blue)" />
         <Star x="8%" y="188px" size={14} color="var(--pink)" />
 
-        <AnimatePresence mode="wait">
-          <Content
-            key={activeTab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.16, ease: 'easeOut' }}
-          >
-            <Page />
-          </Content>
-        </AnimatePresence>
+        <Content>
+          <Page />
+        </Content>
 
         <BottomNav />
       </Phone>

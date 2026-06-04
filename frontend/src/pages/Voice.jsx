@@ -6,11 +6,11 @@ import VoiceOrb from '../components/VoiceOrb.jsx'
 import { useAppStore } from '../store/useAppStore.js'
 
 const Top = styled.header`
-  margin: 0 0 0 12px;
+  margin: 0 0 0 var(--title-indent);
 
   h1 {
     margin: 0 0 4px;
-    font-size: 28px;
+    font-size: var(--page-title-size);
     line-height: 1.05;
     letter-spacing: 0;
     font-weight: 600;
@@ -19,7 +19,7 @@ const Top = styled.header`
   p {
     margin: 0;
     color: var(--muted);
-    font-size: 14px;
+    font-size: var(--body-size);
     line-height: 1.35;
   }
 `
@@ -31,7 +31,7 @@ const StatusText = styled.div`
   strong {
     display: block;
     color: ${({ active }) => (active ? 'var(--green)' : 'var(--text)')};
-    font-size: 17px;
+    font-size: var(--section-title-size);
     letter-spacing: 0;
     font-weight: 500;
     text-transform: uppercase;
@@ -39,7 +39,7 @@ const StatusText = styled.div`
 
   span {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--meta-size);
   }
 `
 
@@ -56,7 +56,7 @@ const ReportHeader = styled.div`
 
   h2 {
     margin: 0;
-    font-size: 16px;
+    font-size: var(--section-title-size);
     font-weight: 500;
     letter-spacing: 0;
   }
@@ -83,7 +83,7 @@ const ReportRow = styled.div`
 
   strong {
     color: var(--text);
-    font-size: 14px;
+    font-size: var(--body-size);
     font-weight: 500;
   }
 
@@ -91,7 +91,7 @@ const ReportRow = styled.div`
     grid-column: 2;
     margin: -2px 0 0;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--meta-size);
     line-height: 1.35;
   }
 `
@@ -128,11 +128,11 @@ const ErrorBox = styled.div`
   color: #050505;
   background: #ff6259;
   border: 0;
-  font-size: 13px;
+  font-size: var(--meta-size);
 `
 
 export default function Voice() {
-  const { sendVoice, voiceState, voiceResult, apiError } = useAppStore()
+  const { sendVoice, voiceState, voiceResult, favoriteTaskIds, apiError } = useAppStore()
   const [isRecording, setIsRecording] = useState(false)
   const [recordedBlob, setRecordedBlob] = useState(null)
   const mediaRecorderRef = useRef(null)
@@ -176,10 +176,24 @@ export default function Voice() {
   async function sendReport() {
     if (!recordedBlob) return
     await sendVoice(recordedBlob)
+    setRecordedBlob(null)
   }
 
-  const resultText = voiceResult?.text || 'Пока ничего не добавлено'
+  const emptyText = 'Пока ничего не добавлено'
+  const resultText = voiceResult?.text || emptyText
+  const voiceTask = voiceResult?.task || null
+  const isFavoriteTask = voiceTask ? favoriteTaskIds.includes(String(voiceTask.id)) : false
+  const doneText = voiceTask && !isFavoriteTask && voiceTask.completed ? resultText : emptyText
+  const activeText = voiceTask && !isFavoriteTask && !voiceTask.completed ? resultText : emptyText
+  const favoriteText = voiceTask && isFavoriteTask ? resultText : emptyText
   const isUploading = voiceState === 'uploading'
+  const sendLabel = isUploading
+    ? 'Отправка...'
+    : voiceState === 'done'
+      ? 'Отчёт отправлен'
+      : recordedBlob
+        ? 'Отправить отчёт'
+        : 'Сначала запиши отчёт'
 
   return (
     <>
@@ -192,19 +206,19 @@ export default function Voice() {
 
       <StatusText active={isRecording}>
         <strong>{isRecording ? 'идёт запись' : recordedBlob ? 'запись готова' : 'готов к записи'}</strong>
-        <span>{isRecording ? 'Нажми ещё раз, чтобы остановить' : recordedBlob ? 'Можно отправить отчёт' : 'Нажми и удерживай'}</span>
+        <span>{isRecording ? 'Нажми ещё раз, чтобы остановить' : recordedBlob ? 'Можно отправить отчёт' : 'Нажми, скажи текст и останови запись'}</span>
       </StatusText>
 
       <Report as="section" aria-labelledby="report-title">
         <ReportHeader>
         </ReportHeader>
         <ReportRows>
-          <ReportRow><Dot tone="var(--green)" /><strong>Сделано</strong><p>{voiceResult ? resultText : 'Пока ничего не добавлено'}</p></ReportRow>
-          <ReportRow><Dot tone="var(--blue)" /><strong>В работе</strong><p>Пока ничего не добавлено</p></ReportRow>
-          <ReportRow><Dot tone="var(--pink)" /><strong>Избранное</strong><p>Пока ничего не добавлено</p></ReportRow>
+          <ReportRow><Dot tone="var(--green)" /><strong>Сделано</strong><p>{doneText}</p></ReportRow>
+          <ReportRow><Dot tone="var(--blue)" /><strong>В работе</strong><p>{activeText}</p></ReportRow>
+          <ReportRow><Dot tone="var(--pink)" /><strong>Избранное</strong><p>{favoriteText}</p></ReportRow>
         </ReportRows>
         <SendButton type="button" onClick={sendReport} disabled={!recordedBlob || isUploading}>
-          {isUploading ? 'Отправка...' : 'Отправить отчёт'} {voiceState === 'done' ? <Check size={18} /> : <Send size={18} />}
+          {sendLabel} {voiceState === 'done' ? <Check size={18} /> : <Send size={18} />}
         </SendButton>
       </Report>
 

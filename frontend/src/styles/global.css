@@ -33,7 +33,7 @@
 :root {
   font-family: "PF Square Sans Pro", ui-sans-serif, system-ui, sans-serif;
   color: #f5f5f2;
-  background: #2f3732;
+  background: #050505;
   font-synthesis: none;
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
@@ -49,6 +49,14 @@
   --lime: #e7f21a;
   --pink: #ef5aa8;
   --yellow: #f5ec20;
+  --app-width: min(100vw, 390px);
+  --content-x: 18px;
+  --title-indent: 0px;
+  --page-title-size: 28px;
+  --section-title-size: 16px;
+  --card-title-size: 16px;
+  --body-size: 14px;
+  --meta-size: 13px;
 }
 
 * {
@@ -65,7 +73,7 @@ body,
 
 body {
   min-width: 320px;
-  background: #2f3732;
+  background: #050505;
   overflow-x: hidden;
   font-weight: 400;
 }

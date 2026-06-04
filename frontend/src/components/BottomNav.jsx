@@ -15,7 +15,7 @@ const Nav = styled.nav`
   bottom: 0;
   transform: translateX(-50%);
   z-index: 10;
-  width: min(100vw, 390px);
+  width: var(--app-width);
   min-height: calc(72px + var(--tg-safe-bottom));
   padding: 8px 12px calc(8px + var(--tg-safe-bottom));
   display: grid;
