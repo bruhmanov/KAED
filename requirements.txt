@@ -3,3 +3,8 @@ asyncpg
 python-dotenv
 jira
 cryptography
+fastapi
+uvicorn
+python-multipart
+requests
+imageio-ffmpeg

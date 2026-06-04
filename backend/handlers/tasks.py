@@ -32,15 +32,34 @@ async def cmd_my_tasks(message: types.Message):
                 only_my=True,
                 max_results=20
             )
+
             if issues:
                 header = f"📌 *{cfg['name']}* (проект {cfg['project_key'] or 'все проекты'})\n"
+
                 # Экранируем спецсимволы для Markdown
-                tasks_text = "\n".join(
-                    f"• [{i['key']}]({i['url']}) — {i['summary'][:80].replace('_', '\\_').replace('*', '\\*')} ({i['status']})"
-                    for i in issues
+                lines = []
+                for i in issues:
+                    summary = i["summary"][:80]
+                    summary = summary.replace("_", "\\_").replace("*", "\\*")
+
+                    line = f"• [{i['key']}]({i['url']}) — {summary} ({i['status']})"
+                    lines.append(line)
+
+                tasks_text = "\n".join(lines)
+
+                await message.answer(
+                    header + tasks_text,
+                    parse_mode="Markdown",
+                    disable_web_page_preview=True
                 )
-                await message.answer(header + tasks_text, parse_mode="Markdown", disable_web_page_preview=True)
             else:
-                await message.answer(f"📭 *{cfg['name']}* — нет задач, назначенных на вас.", parse_mode="Markdown")
+                await message.answer(
+                    f"📭 *{cfg['name']}* — нет задач, назначенных на вас.",
+                    parse_mode="Markdown"
+                )
+
         except Exception as e:
-            await message.answer(f"❌ *{cfg['name']}*: ошибка — {str(e)}", parse_mode="Markdown")
+            await message.answer(
+                f"❌ *{cfg['name']}*: ошибка — {str(e)}",
+                parse_mode="Markdown"
+            )

@@ -1,5 +1,7 @@
 from aiogram import Router, types
 from aiogram.filters import Command
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from backend.config import WEB_APP_URL
 from backend.db import create_user
 
 router = Router()
@@ -12,13 +14,27 @@ async def cmd_start(message: types.Message):
         first_name=message.from_user.first_name,
         last_name=message.from_user.last_name
     )
+    reply_markup = None
+    if WEB_APP_URL:
+        reply_markup = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="Открыть KAED",
+                        web_app=WebAppInfo(url=WEB_APP_URL),
+                    )
+                ]
+            ]
+        )
+
     await message.answer(
         "👋 Привет! Я бот для работы с Jira.\n\n"
         "Доступные команды:\n"
         "/add_jira – добавить новую Jira-конфигурацию\n"
         "/my_configs – посмотреть мои конфигурации\n"
         "/my_tasks – получить задачи Jira\n"
-        "/help – справка"
+        "/help – справка",
+        reply_markup=reply_markup,
     )
 
 @router.message(Command("help"))
